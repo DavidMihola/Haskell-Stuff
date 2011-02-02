@@ -2,8 +2,9 @@ import Text.Printf
 
 type Picture = String
 
-
 data Point = Point Double Double deriving (Show, Eq)
+
+data SVGDocument = SVGDocument String
 
 data SVG = Line {
               lineFrom :: Point,
@@ -20,7 +21,14 @@ data SVG = Line {
               color :: (Int,Int,Int)
             }
             |
-            Card {
+            Group {
+              width :: Double,
+              height :: Double,
+              content :: String
+            }
+            deriving (Show, Eq)
+
+data Card = Card {
               background :: [SVG],
               topLeft :: [SVG],
               topRight :: [SVG],
@@ -29,24 +37,36 @@ data SVG = Line {
               center :: [SVG]
             }
 
-            deriving (Show, Eq)
+class SVGable a where
+  svgShow :: a -> String
 
-{-
-instance Show Card where
-  show (Card lo ro lu ru mi) = "LO:" ++ concat lo ++ "\n\
-                               \RO:" ++ concat ro ++ "\n\
-                               \LU:" ++ concat lu ++ "\n\
-                               \RO:" ++ concat ru ++ "\n\
-                               \MI:" ++ concat mi ++ "\n"
--}
+instance SVGable Card where
+  svgShow (Card bg lo ro lu ru mi) = concat (map svgShow bg) :: String
 
-svgShow (Card bg lo ro lu ru mi) = concat (map svgShow bg) :: String
-
-svgShow (Rectangle x y w h rx ry (r,g,b)) =
+instance SVGable SVG where
+  svgShow (Rectangle x y w h rx ry (r,g,b)) =
     printf "<rect x =\"%.2f\" y =\"%.2f\" width =\"%.2f\" height =\"%.2f\" \
            \rx =\"%.2f\" ry =\"%.2f\" style=\"fill:rgb(%d,%d,%d)\" />" x y w h rx ry r g b:: String
-svgShow (Line (Point x1 y1) (Point x2 y2)) = (printf fmtStr x1 y1 x2 y2) :: String
+  svgShow (Line (Point x1 y1) (Point x2 y2)) = (printf fmtStr x1 y1 x2 y2) :: String
     where fmtStr = "<line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" style=\"stroke:black;stroke-width:3;\" />\n"
+
+instance SVGable SVGDocument where
+  svgShow (SVGDocument c) = (printf fmtStr c) :: String
+    where fmtStr = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>\n\
+                   \<svg\n\
+                   \xmlns:svg=\"http://www.w3.org/2000/svg\"\n\
+                   \xmlns=\"http://www.w3.org/2000/svg\"\n\
+                   \version=\"1.1\"\n\
+                   \width=\"744.09448\"\n\
+                   \height=\"1052.3622\"\n\
+                   \id=\"svg2\">\n\
+                   \<defs\n\
+                   \id=\"defs4\" />\n\
+                   \<g\n\
+                   \id=\"layer1\" >\n\
+	           \%s\n\
+                   \</g>\n\
+                   \</svg>"
 
 ppm :: Double
 ppm = 3.54
@@ -98,16 +118,18 @@ magicCardBorder = Rectangle borderX borderY w h rad rad (255,255,255)
         borderY = 6
         rad = 12
 
-emptyCard :: SVG
+emptyCard :: Card
 emptyCard = Card [] [] [] [] [] []
 
-magicCard :: SVG
+magicCard :: Card
 magicCard = emptyCard {background = [magicCardBackground, magicCardBorder]}
 
-addBackground :: SVG -> SVG -> SVG
+addBackground :: Card -> SVG -> Card
 addBackground card svg = card {background = old ++ [svg]}
   where old = background card
 
-atPositions :: [(Double,Double)] -> [SVG] -> String
-atPositions ps cs = concat xs
+cardsAtPositions :: [(Double,Double)] -> [Card] -> String
+cardsAtPositions ps cs = concat xs
   where xs = zipWith (\(x,y) c -> printf "<g transform=\"translate(%.2f, %.2f)\">\n%s\n</g>" x y c) ps (map svgShow cs)
+
+cardPage = svgShow $ SVGDocument ((concat $ map svgShow magicCardGrid)++(cardsAtPositions magicCardPositions (repeat magicCard)))
