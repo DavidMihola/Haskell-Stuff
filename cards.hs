@@ -1,4 +1,5 @@
 import Text.Printf
+import System.IO
 
 type Picture = String
 
@@ -48,7 +49,7 @@ instance SVGable SVG where
     printf "<rect x =\"%.2f\" y =\"%.2f\" width =\"%.2f\" height =\"%.2f\" \
            \rx =\"%.2f\" ry =\"%.2f\" style=\"fill:rgb(%d,%d,%d)\" />" x y w h rx ry r g b:: String
   svgShow (Line (Point x1 y1) (Point x2 y2)) = (printf fmtStr x1 y1 x2 y2) :: String
-    where fmtStr = "<line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" style=\"stroke:black;stroke-width:3;\" />\n"
+    where fmtStr = "<line x1=\"%.2f\" y1=\"%.2f\" x2=\"%.2f\" y2=\"%.2f\" style=\"stroke:black;stroke-width:1;\" />\n"
 
 instance SVGable SVGDocument where
   svgShow (SVGDocument c) = (printf fmtStr c) :: String
@@ -132,4 +133,15 @@ cardsAtPositions :: [(Double,Double)] -> [Card] -> String
 cardsAtPositions ps cs = concat xs
   where xs = zipWith (\(x,y) c -> printf "<g transform=\"translate(%.2f, %.2f)\">\n%s\n</g>" x y c) ps (map svgShow cs)
 
-cardPage = svgShow $ SVGDocument ((concat $ map svgShow magicCardGrid)++(cardsAtPositions magicCardPositions (repeat magicCard)))
+addContent :: SVGDocument -> String -> SVGDocument
+addContent (SVGDocument old) str = SVGDocument (old ++ str)
+
+gridPage = SVGDocument (concat $ map svgShow magicCardGrid)
+
+cardPage = addContent gridPage (cardsAtPositions magicCardPositions (repeat magicCard))
+
+main :: IO ()
+main = do
+       outh <- openFile "output.svg" WriteMode
+       hPutStr outh (svgShow cardPage)
+       hClose outh
